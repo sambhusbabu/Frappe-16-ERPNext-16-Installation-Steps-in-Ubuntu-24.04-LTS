@@ -322,7 +322,7 @@ This downloads the ERPNext application source code corresponding to the version-
 ### 11.3 Install ERPNext on the site
 
 ```bash
-bench --site sambhusbabu.com instal-app erpnext
+bench --site erp.sambhusbabu.com install-app erpnext
 ```
 
 This command is intended to install ERPNext on the specified site. See the command verification notes at the end of this document.
