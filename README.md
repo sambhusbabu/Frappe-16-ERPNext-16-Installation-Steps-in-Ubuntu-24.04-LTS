@@ -354,6 +354,10 @@ This enables DNS-based site resolution, allowing Bench to identify sites based o
 ```bash
 sudo env "PATH=$PATH" bench setup production frappe
 ```
+if error run:
+```bash
+sudo env "PATH=$PATH:/usr/sbin:/usr/bin" bench setup production frappe
+```
 
 This configures the production environment for the `frappe` Linux user.
 
