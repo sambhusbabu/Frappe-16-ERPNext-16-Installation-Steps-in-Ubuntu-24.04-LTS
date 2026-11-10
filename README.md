@@ -213,6 +213,45 @@ This attempts to resolve missing package dependencies after installation.
 
 ---
 
+### Install Chromium for PDF Print Format
+
+Frappe/ERPNext uses Chromium to generate PDF documents from Print Formats. Follow these steps to install Chromium and its required dependencies.
+
+**1. Install Chromium**
+
+You can use either of the following methods.
+
+**Option 1: Install using APT**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y chromium-browser
+```
+
+**Option 2: Install using Bench**
+
+```bash
+bench setup-chrome
+```
+
+**2. Install Required Dependencies**
+
+If you encounter missing package errors or Chromium fails to generate PDF files, install the following dependencies:
+
+```bash
+sudo apt update && sudo apt install -y fonts-liberation libatk-bridge2.0-0 libgbm1 libgtk-3-0 libnspr4 libnss3 libvulkan1 libasound2t64 libxdamage1
+```
+
+**3. Restart Bench**
+
+After installing Chromium and its dependencies, restart the Frappe services:
+
+```bash
+bench restart
+```
+
+**Note:** If PDF generation still fails, verify that Chromium is installed correctly and that all required dependencies are available.
+
 ## 8. Install uv and Python
 
 `uv` is a fast Python package and environment manager. In this installation, it is used to install Python and manage the Bench CLI in an isolated environment.
