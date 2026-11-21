@@ -314,6 +314,10 @@ A Bench directory contains the Frappe framework, Python virtual environment, app
 bench init --frappe-branch version-16 frappe-bench
 ```
 
+```bash
+bench init frappe-bench --frappe-branch version-16 --python python3.14
+```
+
 **Explanation:**
 - `--frappe-branch version-16` selects the Frappe Framework v16 branch.
 - `frappe-bench` is the name of the Bench directory being created.
