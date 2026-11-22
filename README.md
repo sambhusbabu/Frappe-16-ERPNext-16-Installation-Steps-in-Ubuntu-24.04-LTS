@@ -122,6 +122,9 @@ sudo mariadb-secure-installation
 ```bash
 sudo service mysql restart
 ```
+```bash
+sudo service mariadb restart
+```
 
 This restarts the database service after configuration.
 
