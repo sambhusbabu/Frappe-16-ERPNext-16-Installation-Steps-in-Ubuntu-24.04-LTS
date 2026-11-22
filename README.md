@@ -567,6 +567,354 @@ The production setup command should be executed from the correct Bench directory
 
 ---
 
+## 16. Configure Cloudflare DNS and SSL for Frappe / ERPNext
+
+This section explains how to connect your Frappe / ERPNext site to your domain using Cloudflare DNS, an SSL certificate, and Nginx. It enables secure HTTPS access to your site.
+
+> **Recommended configuration:** Cloudflare Origin Certificate + Nginx + Full (Strict) SSL mode.
+
+### 16.1 Configure Cloudflare DNS
+
+Before configuring SSL on your server, point your domain to your server's public IP address through Cloudflare.
+
+1. Log in to the [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2. Select your domain.
+3. Navigate to **DNS → Records**.
+4. Add the following DNS record:
+
+| Setting | Value |
+|---|---|
+| Type | A |
+| Name | `@` or your subdomain (e.g., `erp`) |
+| IPv4 address | `YOUR_SERVER_IP` |
+| Proxy status | Proxied (Orange Cloud ON) |
+| TTL | Auto |
+
+If you are using a subdomain such as `erp.example.com`, enter `erp` as the record name. If you want to use the root domain such as `example.com`, enter `@`.
+
+Replace `YOUR_SERVER_IP` with your server's public IPv4 address.
+
+> **Note:** Ensure that your domain's nameservers are already configured to use Cloudflare.
+
+---
+
+### 16.2 Enable DNS Multitenancy in Frappe
+
+DNS multitenancy allows Frappe to identify the correct site based on the incoming domain name.
+
+Navigate to your `frappe-bench` directory:
+
+```bash
+cd ~/frappe-bench
+```
+
+Enable DNS multitenancy:
+
+```bash
+bench config dns_multitenant on
+```
+
+This allows Frappe to resolve incoming requests using the domain name associated with your site.
+
+---
+
+### 16.3 Add Your Domain to the Frappe Site
+
+Map your Cloudflare domain to your Frappe site.
+
+Run the following command from your `frappe-bench` directory:
+
+```bash
+bench setup add-domain --site site1.local yourdomain.com
+```
+
+Replace the placeholders:
+
+- `site1.local` – Your actual site directory name inside `~/frappe-bench/sites/`.
+- `yourdomain.com` – Your actual domain or subdomain configured in Cloudflare.
+
+**Example:**
+
+```bash
+bench setup add-domain --site erp.local erp.example.com
+```
+
+This associates the domain `erp.example.com` with the site `erp.local`.
+
+---
+
+### 16.4 Create the SSL Certificate Directory
+
+Create a directory to store the SSL certificate and private key used by Nginx.
+
+```bash
+sudo mkdir -p /etc/nginx/conf.d/ssl
+```
+
+This directory will be used to store the certificate files.
+
+---
+
+### 16.5 Generate a Cloudflare Origin Certificate
+
+Cloudflare Origin Certificates allow Cloudflare to establish a secure connection to your origin server (your Frappe / ERPNext server).
+
+1. Open the [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2. Select your domain.
+3. Navigate to **SSL/TLS → Origin Server**.
+4. Click **Create Certificate**.
+5. Select **Generate private key and CSR with Cloudflare**.
+6. Choose the appropriate hostnames, such as:
+   - `yourdomain.com`
+   - `*.yourdomain.com`
+7. Select the certificate validity period.
+8. Click **Create**.
+
+Cloudflare will generate two items:
+
+- **Origin Certificate** – The certificate file.
+- **Private Key** – The private key associated with the certificate.
+
+> **Important:** Copy the private key immediately and store it securely. Cloudflare does not display the generated private key again after you leave the page.
+
+---
+
+### 16.6 Save the Origin Certificate on Your Server
+
+#### 16.6.1 Create the Certificate File
+
+Open a new certificate file:
+
+```bash
+sudo nano /etc/nginx/conf.d/ssl/cloudflare.crt
+```
+
+Paste the entire Origin Certificate copied from Cloudflare, including the following lines:
+
+```text
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+```
+
+Save and exit:
+
+- Press `CTRL + O` and Enter to save.
+- Press `CTRL + X` to exit.
+
+#### 16.6.2 Create the Private Key File
+
+Open a new private key file:
+
+```bash
+sudo nano /etc/nginx/conf.d/ssl/cloudflare.key
+```
+
+Paste the entire private key copied from Cloudflare, including the header and footer:
+
+```text
+-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----
+```
+
+Save and exit:
+
+- Press `CTRL + O` and Enter to save.
+- Press `CTRL + X` to exit.
+
+> **Security warning:** Never share, publish, or commit your private key to GitHub. Anyone with access to the private key may compromise the security of your server.
+
+---
+
+### 16.7 Set Secure Permissions for SSL Files
+
+Set the appropriate permissions for the certificate and private key files.
+
+```bash
+sudo chmod 644 /etc/nginx/conf.d/ssl/cloudflare.crt
+sudo chmod 600 /etc/nginx/conf.d/ssl/cloudflare.key
+```
+
+The permissions ensure that:
+
+- The certificate is readable by services that need it.
+- The private key is accessible only by the root user.
+
+Verify the files:
+
+```bash
+sudo ls -l /etc/nginx/conf.d/ssl/
+```
+
+You should see the certificate and private key files listed.
+
+---
+
+### 16.8 Bind the SSL Certificate to Your Frappe Site
+
+Navigate to your `frappe-bench` directory:
+
+```bash
+cd ~/frappe-bench
+```
+
+#### 16.8.1 Set the SSL Certificate
+
+Attach the Cloudflare Origin Certificate to your Frappe site:
+
+```bash
+bench set-ssl-certificate site1.local /etc/nginx/conf.d/ssl/cloudflare.crt
+```
+
+#### 16.8.2 Set the SSL Private Key
+
+Attach the private key:
+
+```bash
+bench set-ssl-key site1.local /etc/nginx/conf.d/ssl/cloudflare.key
+```
+
+Replace `site1.local` with your actual Frappe site directory name.
+
+---
+
+### 16.9 Regenerate the Nginx Configuration
+
+After binding the SSL certificate and private key, regenerate the Nginx configuration so that Frappe uses the updated SSL settings.
+
+Run the following commands from your `frappe-bench` directory:
+
+```bash
+bench setup nginx
+```
+
+This regenerates the Nginx configuration for your Frappe sites.
+
+---
+
+### 16.10 Allow HTTPS Traffic Through the Firewall
+
+If you are using UFW (Uncomplicated Firewall), allow HTTP and HTTPS traffic.
+
+```bash
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+```
+
+Verify the firewall rules:
+
+```bash
+sudo ufw status
+```
+
+> **Note:** If you are using a cloud provider, router, or external firewall, ensure that ports 80 and 443 are also allowed there.
+
+---
+
+### 16.11 Test and Reload Nginx
+
+Before reloading Nginx, test the configuration for syntax errors:
+
+```bash
+sudo nginx -t
+```
+
+If the configuration test is successful, reload Nginx:
+
+```bash
+sudo service nginx reload
+```
+
+Alternatively, you can use:
+
+```bash
+sudo systemctl reload nginx
+```
+
+If the configuration test fails, fix the reported errors before reloading Nginx.
+
+---
+
+### 16.12 Enable Full (Strict) SSL Mode in Cloudflare
+
+Once your certificate is installed and Nginx is configured, enable Full (Strict) encryption in Cloudflare.
+
+1. Open the [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2. Select your domain.
+3. Navigate to **SSL/TLS → Overview**.
+4. Select **Full (Strict)** as the SSL/TLS encryption mode.
+
+**Full (Strict)** encrypts traffic between the visitor and Cloudflare, and also between Cloudflare and your origin server. It verifies that the origin server presents a valid certificate.
+
+> **Important:** Use the Cloudflare Origin Certificate installed in the previous steps. Do not use an ordinary self-signed certificate with Full (Strict), because Cloudflare must be able to validate the origin certificate.
+
+---
+
+### 16.13 Verify Your HTTPS Configuration
+
+After completing the configuration, open your domain in a browser:
+
+```text
+https://yourdomain.com
+```
+
+Verify the following:
+
+- Your Frappe / ERPNext site loads successfully.
+- The website is accessible over HTTPS.
+- The browser shows a secure connection.
+- HTTP requests redirect to HTTPS, if the redirect is configured.
+- Cloudflare SSL/TLS encryption mode is set to **Full (Strict)**.
+- Your site does not show a Cloudflare SSL error such as `525 SSL handshake failed` or `526 Invalid SSL certificate`.
+
+You can also test your domain from the server or another terminal:
+
+```bash
+curl -I https://yourdomain.com
+```
+
+---
+
+### 16.14 Troubleshooting SSL and Nginx Issues
+
+If your site is not accessible after configuring SSL, run the following commands and check the output.
+
+#### Check Nginx Configuration
+
+```bash
+sudo nginx -t
+```
+
+#### Check Nginx Status
+
+```bash
+sudo systemctl status nginx
+```
+
+#### Check Nginx Error Logs
+
+```bash
+sudo tail -n 50 /var/log/nginx/error.log
+```
+
+#### Check SSL Certificate Information
+
+```bash
+sudo openssl x509 -in /etc/nginx/conf.d/ssl/cloudflare.crt -noout -subject -issuer -dates
+```
+
+#### Check Your Frappe Site Directory
+
+```bash
+ls ~/frappe-bench/sites/
+```
+
+If you still encounter an error, check the Nginx configuration, SSL certificate paths, Cloudflare DNS records, and the SSL/TLS encryption mode.
+
+
+---
+
 ## Conclusion
 
 This guide provides a structured workflow for installing Frappe Framework v16 and ERPNext v16 on Ubuntu 24.04 LTS:
